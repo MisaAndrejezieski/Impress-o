@@ -1,13 +1,13 @@
 // =========================================================
-// PEÇA 1: CARCAÇA PRINCIPAL CORRIGIDA (Com 4 Torres de Rosca)
+// PEÇA 1: CARCAÇA PRINCIPAL - AJUSTADA PARA PCYES CALAFRIO 120MM
 // =========================================================
 
 fan_tamanho = 120.0;
-fan_espessura = 25.5;
+fan_espessura = 26.0;     // 25mm + 1mm para os pads de borracha nos cantos
 furo_distancia = 105.0;
 furo_diametro = 4.4;
 furo_rosca = 3.7;
-folga_encaixe = 0.4;
+folga_encaixe = 0.6;      // Folga confortável para encaixar sem forçar
 
 // USB no topo (USB-A: 14.8 x 7.2 | USB-C oval: 9.6 x 3.8)
 usb_formato = "retangular"; // ["retangular", "oval"]
@@ -18,13 +18,14 @@ parede = 3.2;
 parede_fundo = 3.5;
 espaco_traseiro = 14.0;
 recuo_acustico = 10.0;
-raio_canto = 12.0;
+raio_externo = 12.0;      // Visual arredondado por fora
+raio_interno = 3.5;       // Cantos quase retos por dentro (encaixa o cooler quadrado!)
 espessura_orelha = 5.0;
 
 $fn = 64;
 
-interno = fan_tamanho + folga_encaixe;
-externo = interno + parede * 2;
+interno = fan_tamanho + folga_encaixe; // 120.6mm
+externo = interno + parede * 2;        // 127.0mm
 profundidade_carcaca = parede_fundo + espaco_traseiro + fan_espessura + recuo_acustico;
 
 module caixa_arredondada(larg, alt, prof, r) {
@@ -61,7 +62,7 @@ union() {
     // 1. Casca externa + abas + abertura USB
     difference() {
         union() {
-            caixa_arredondada(externo, externo, profundidade_carcaca, raio_canto);
+            caixa_arredondada(externo, externo, profundidade_carcaca, raio_externo);
 
             // Moldura externa reforçada no topo para o USB
             translate([0, externo/2 + 1.0, parede_fundo + usb_altura/2])
@@ -79,11 +80,11 @@ union() {
             }
         }
 
-        // Cavidade interna
+        // Cavidade interna com cantos quase retos (raio_interno = 3.5mm)
         translate([0, 0, parede_fundo])
-            caixa_arredondada(interno, interno, profundidade_carcaca + 2, raio_canto - parede);
+            caixa_arredondada(interno, interno, profundidade_carcaca + 2, raio_interno);
 
-        // Entrada de ar traseira (diâmetro 104mm para não invadir as torres de parafuso)
+        // Entrada de ar traseira
         translate([0, 0, -1])
             cylinder(h = parede_fundo + 4, d = 104);
 
@@ -99,21 +100,23 @@ union() {
         }
     }
 
-    // 2. As 4 Torres internas de fixação (adicionadas DEPOIS da cavidade!)
+    // 2. As 4 Torres internas de fixação (com folga para saída do cabo)
     difference() {
         for (x = [-1, 1]) for (y = [-1, 1]) {
             hull() {
-                // Centro alinhado exatamente com os furos de 105mm do cooler
                 translate([x * (furo_distancia/2), y * (furo_distancia/2), parede_fundo - 0.5])
-                    cylinder(h = espaco_traseiro + 0.5, r = 5.5);
-                // Ancorado no canto da parede interna para máxima rigidez
-                translate([x * (interno/2 - 5), y * (interno/2 - 5), parede_fundo - 0.5])
-                    cylinder(h = espaco_traseiro + 0.5, r = 5.0);
+                    cylinder(h = espaco_traseiro + 0.5, r = 5.2);
+                translate([x * (interno/2 - 3.5), y * (interno/2 - 3.5), parede_fundo - 0.5])
+                    cylinder(h = espaco_traseiro + 0.5, r = 3.5);
             }
         }
 
         // Furos cegos de rosca M4 (3.7mm) nas 4 torres
         translate([0, 0, parede_fundo + 1.5])
             furos_montagem(furo_rosca, espaco_traseiro + 2);
+
+        // Canaleta de alívio na torre inferior direita para o cabo do PCYES passar livre
+        translate([furo_distancia/2 - 7, -furo_distancia/2 - 2, parede_fundo + espaco_traseiro - 3])
+            cube([8, 12, 8], center = true);
     }
 }
