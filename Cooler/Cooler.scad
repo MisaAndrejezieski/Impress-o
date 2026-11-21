@@ -15,9 +15,10 @@ furo_rosca = 3.7;         // Diâmetro para o parafuso M4 abrir rosca no plásti
 folga_encaixe = 0.4;      // Tolerância para Ender 3
 
 /* [Saída USB Superior] */
-// Padrão 9.2 x 3.4 mm serve tanto para conector USB-C fêmea quanto para passar cabo USB
-usb_largura = 9.2;        // Largura do recorte USB no topo
-usb_altura = 3.4;         // Altura do recorte USB no topo (espessura)
+// "retangular" = USB-A fêmea padrão (14.8 x 7.2) | "oval" = USB-C fêmea (9.6 x 3.8)
+usb_formato = "retangular"; // ["retangular", "oval"]
+usb_largura = 14.8;         // USB-A: 14.8 | USB-C: 9.6
+usb_altura = 7.2;           // USB-A: 7.2  | USB-C: 3.8
 
 /* [Acústica e Estética] */
 parede = 3.2;             // Espessura robusta anti-vibração
@@ -54,6 +55,22 @@ module furos_montagem(diam, alt) {
                 cylinder(h = alt, d = diam);
 }
 
+module perfil_usb(larg, alt, prof) {
+    if (usb_formato == "retangular") {
+        // Cantos levemente arredondados (r=0.8mm) para encaixe perfeito do USB-A
+        rotate([90, 0, 0])
+            caixa_arredondada(larg, alt, prof, 0.8);
+    } else {
+        // Perfil ovalado para USB-C / Micro-USB
+        hull() {
+            for (x = [-larg/2 + alt/2, larg/2 - alt/2])
+                translate([x, 0, 0])
+                    rotate([90, 0, 0])
+                        cylinder(h = prof, d = alt, center = true);
+        }
+    }
+}
+
 // =========================================================
 // PEÇA 1: CARCAÇA PRINCIPAL (Saída USB no topo, sem suportes)
 // =========================================================
@@ -68,14 +85,9 @@ module peca_carcaca() {
                 translate([x * (interno/2 - 8.5), y * (interno/2 - 8.5), 3])
                     cylinder(h = recuo_acustico + 1, r = 8.5);
 
-            // Moldura externa reforçada no topo para o conector/cabo USB
-            translate([0, externo/2 - 0.5, 4 + usb_altura/2])
-                hull() {
-                    for (x = [-usb_largura/2 - 1.5, usb_largura/2 + 1.5])
-                        translate([x, 0, 0])
-                            rotate([90, 0, 0])
-                                cylinder(h = 2.0, d = usb_altura + 3.0, center = true);
-                }
+            // Moldura externa reforçada no topo para o conector USB
+            translate([0, externo/2 + 1.0, 4 + usb_altura/2])
+                perfil_usb(usb_largura + 4.0, usb_altura + 3.6, 2.5);
 
             // Duas abas inferiores de acoplamento na Base
             for (lado = [-1, 1]) {
@@ -101,15 +113,10 @@ module peca_carcaca() {
         translate([0, 0, 1.5])
             furos_montagem(furo_rosca, profundidade_carcaca);
 
-        // Janela superior (Y+) para conector USB ou passagem do cabo USB
-        // Posicionada rente ao batente traseiro (Z=4) para imprimir sem suportes!
-        translate([0, externo/2, 4 + usb_altura/2])
-            hull() {
-                for (x = [-usb_largura/2 + usb_altura/2, usb_largura/2 - usb_altura/2])
-                    translate([x, 0, 0])
-                        rotate([90, 0, 0])
-                            cylinder(h = 16, d = usb_altura, center = true);
-            }
+        // Janela superior (Y+) para conector USB fêmea
+        // Rente ao batente traseiro (Z=4) para imprimir sem suportes!
+        translate([0, externo/2 + 4, 4 + usb_altura/2])
+            perfil_usb(usb_largura, usb_altura, 16);
 
         // Furos M4 nas abas inferiores para prender na Base
         for (lado = [-1, 1]) {
