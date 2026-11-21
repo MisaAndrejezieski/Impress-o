@@ -1,39 +1,42 @@
 // =========================================================
-// VENTILADOR DE MESA SILENCIOSO 120MM - 3 PEÇAS + SAÍDA USB TOPO
+// VENTILADOR DE MESA SILENCIOSO 120MM - OPÇÃO B (USB TRASEIRO)
 // =========================================================
 
 /* [Modo de Visualização / Exportação] */
-// "montado" = preview | "carcaca" = STL 1 | "grade" = STL 2 | "base" = STL 3
-modo = "montado"; // ["montado", "carcaca", "grade", "base"]
+// "separadas" = todas na mesa | "montado" = preview | "carcaca" / "grade" / "base" = STL individual
+modo = "separadas"; // ["separadas", "montado", "carcaca", "grade", "base"]
 
 /* [Dimensões do Cooler] */
 fan_tamanho = 120.0;      // Padrão 120mm
 fan_espessura = 25.5;     // 25mm + 0.5mm de folga
 furo_distancia = 105.0;   // Distância padrão entre furos (120mm fan)
-furo_diametro = 4.4;      // Folga para parafuso M4 passar livre na grade
-furo_rosca = 3.7;         // Diâmetro para o parafuso M4 abrir rosca no plástico
-folga_encaixe = 0.4;      // Tolerância para Ender 3
+furo_diametro = 4.4;      // Folga para parafuso M4 passar livre
+furo_rosca = 3.7;         // Diâmetro para parafuso M4 abrir rosca no plástico
+folga_encaixe = 0.4;      // Tolerância interna para Ender 3
 
-/* [Saída USB Superior] */
+/* [Saída USB Superior (Compartimento Traseiro)] */
 // "retangular" = USB-A fêmea padrão (14.8 x 7.2) | "oval" = USB-C fêmea (9.6 x 3.8)
 usb_formato = "retangular"; // ["retangular", "oval"]
 usb_largura = 14.8;         // USB-A: 14.8 | USB-C: 9.6
 usb_altura = 7.2;           // USB-A: 7.2  | USB-C: 3.8
 
-/* [Acústica e Estética] */
+/* [Acústica, Câmara Traseira e Estética] */
 parede = 3.2;             // Espessura robusta anti-vibração
+parede_fundo = 3.5;       // Espessura da parede traseira
+espaco_traseiro = 14.0;   // Câmara livre atrás do cooler para conector USB e fios
+recuo_acustico = 10.0;    // Espaço frontal entre cooler e grade (elimina zumbido)
 raio_canto = 12.0;        // Arredondamento externo
-recuo_acustico = 10.0;    // Espaço entre cooler e grade (elimina zumbido)
 inclinacao = 15;          // Ângulo padrão da base (graus)
-largura_base = 76;        // Profundidade compacta do pé de apoio
+largura_base = 82;        // Profundidade do pé de apoio
 
 $fn = 64;
 
 // Medidas calculadas
 interno = fan_tamanho + folga_encaixe;
 externo = interno + parede * 2;
-profundidade_carcaca = fan_espessura + recuo_acustico + 4; // +4mm fundo
-espessura_orelha = 5;
+z_apoio_cooler = parede_fundo + espaco_traseiro; // Onde o cooler encosta (17.5mm)
+profundidade_carcaca = z_apoio_cooler + fan_espessura + recuo_acustico; // Total: 53.0mm
+espessura_orelha = 5.0;
 
 // =========================================================
 // MÓDULOS AUXILIARES
@@ -57,11 +60,9 @@ module furos_montagem(diam, alt) {
 
 module perfil_usb(larg, alt, prof) {
     if (usb_formato == "retangular") {
-        // Cantos levemente arredondados (r=0.8mm) para encaixe perfeito do USB-A
         rotate([90, 0, 0])
             caixa_arredondada(larg, alt, prof, 0.8);
     } else {
-        // Perfil ovalado para USB-C / Micro-USB
         hull() {
             for (x = [-larg/2 + alt/2, larg/2 - alt/2])
                 translate([x, 0, 0])
@@ -72,7 +73,7 @@ module perfil_usb(larg, alt, prof) {
 }
 
 // =========================================================
-// PEÇA 1: CARCAÇA PRINCIPAL (Saída USB no topo, sem suportes)
+// PEÇA 1: CARCAÇA PRINCIPAL (Imprime de costas, 0 suportes)
 // =========================================================
 module peca_carcaca() {
     difference() {
@@ -80,13 +81,14 @@ module peca_carcaca() {
             // Corpo principal
             caixa_arredondada(externo, externo, profundidade_carcaca, raio_canto);
 
-            // Torres internas nos 4 cantos para dar rosca nos parafusos da grade
+            // Torres internas nos 4 cantos: servem de batente traseiro para o cooler
+            // e dão profundidade de rosca para os parafusos M4 da grade
             for (x = [-1, 1]) for (y = [-1, 1])
-                translate([x * (interno/2 - 8.5), y * (interno/2 - 8.5), 3])
-                    cylinder(h = recuo_acustico + 1, r = 8.5);
+                translate([x * (interno/2 - 8.5), y * (interno/2 - 8.5), parede_fundo - 0.5])
+                    cylinder(h = espaco_traseiro + 0.5, r = 8.5);
 
             // Moldura externa reforçada no topo para o conector USB
-            translate([0, externo/2 + 1.0, 4 + usb_altura/2])
+            translate([0, externo/2 + 1.0, parede_fundo + usb_altura/2])
                 perfil_usb(usb_largura + 4.0, usb_altura + 3.6, 2.5);
 
             // Duas abas inferiores de acoplamento na Base
@@ -101,21 +103,21 @@ module peca_carcaca() {
             }
         }
 
-        // Cavidade interna para o cooler + duto acústico
-        translate([0, 0, 4])
+        // Cavidade interna completa (câmara USB + cooler + duto acústico)
+        translate([0, 0, parede_fundo])
             caixa_arredondada(interno, interno, profundidade_carcaca + 2, raio_canto - parede);
 
         // Abertura traseira de entrada de ar
         translate([0, 0, -1])
-            cylinder(h = 10, d = fan_tamanho - 6);
+            cylinder(h = parede_fundo + 4, d = fan_tamanho - 8);
 
-        // Furos de rosca nos 4 cantos (para parafusar a grade + cooler)
-        translate([0, 0, 1.5])
-            furos_montagem(furo_rosca, profundidade_carcaca);
+        // Furos de rosca nas 4 torres (parafuso entra pela frente e rosca aqui)
+        translate([0, 0, parede_fundo + 2.0])
+            furos_montagem(furo_rosca, espaco_traseiro + 2);
 
-        // Janela superior (Y+) para conector USB fêmea
-        // Rente ao batente traseiro (Z=4) para imprimir sem suportes!
-        translate([0, externo/2 + 4, 4 + usb_altura/2])
+        // Janela superior (Y+) na câmara traseira para conector USB fêmea
+        // Rente à parede_fundo para imprimir sem nenhum suporte!
+        translate([0, externo/2 + 4, parede_fundo + usb_altura/2])
             perfil_usb(usb_largura, usb_altura, 16);
 
         // Furos M4 nas abas inferiores para prender na Base
@@ -189,7 +191,7 @@ module peca_base() {
 
     difference() {
         union() {
-            // Sapata de apoio na mesa (compacta e estável)
+            // Sapata de apoio na mesa
             caixa_arredondada(externo - 12, largura_base, 4.5, 10);
 
             // Torres de articulação/fixação da carcaça
@@ -207,7 +209,7 @@ module peca_base() {
             }
         }
 
-        // Furos M4 nos suportes da base (para parafusar na carcaça)
+        // Furos M4 nos suportes da base
         for (lado = [-1, 1]) {
             translate([lado * (externo/2 - 22), -2, 18])
             rotate([0, 90, 0])
@@ -225,8 +227,13 @@ if (modo == "carcaca") {
     peca_grade();
 } else if (modo == "base") {
     peca_base();
+} else if (modo == "separadas") {
+    // Todas as 3 peças organizadas lado a lado na mesa de impressão
+    color("#3a3a3a") translate([-75, 0, 0]) peca_carcaca();
+    color("#d93829") translate([75, 0, 0])  peca_grade();
+    color("#2b2b2b") translate([0, -120, 0]) peca_base();
 } else {
-    // Visualização das 3 peças montadas juntas
+    // Visualização montada
     color("#2b2b2b") peca_base();
 
     translate([0, -2, 18])
