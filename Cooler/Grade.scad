@@ -1,14 +1,14 @@
 // =========================================================
-// PEÇA 2: GRADE FRONTAL PARAFUSADA (AUDITADA - 120MM)
+// PEÇA 2: GRADE FRONTAL PARAFUSADA (CORRIGIDA E VALIDADA)
 // =========================================================
 
 fan_tamanho = 120.0;
 furo_distancia = 105.0;
 furo_diametro = 4.4;       // Passante M4
-folga_encaixe = 0.8;       // Mesmo valor da carcaça (120.8mm)
+folga_encaixe = 0.8;       // Unificado com carcaça (120.8mm)
 
 parede = 3.2;
-raio_externo = 12.0;
+raio_externo = 12.0;       // Mesmo raio externo da carcaça (junta 100% rente)
 raio_interno = 3.5;
 esp_grade = 3.2;
 
@@ -38,7 +38,7 @@ difference() {
         // Aro externo
         caixa_arredondada(externo, externo, esp_grade, raio_externo);
 
-        // Ressalto interno de alinhamento (0.4mm de folga lateral para encaixar fácil)
+        // Ressalto interno de alinhamento (0.4mm de folga radial)
         translate([0, 0, esp_grade])
             difference() {
                 caixa_arredondada(interno - 0.8, interno - 0.8, 3.0, raio_interno);
