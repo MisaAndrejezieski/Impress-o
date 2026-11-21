@@ -1,21 +1,22 @@
 // =========================================================
-// PEÇA 3: BASE / PEDESTAL COMPACTO (120mm Fan)
+// PEÇA 3: PEDESTAL / BASE COMPACTA (AUDITADA - 120MM)
 // =========================================================
 
 fan_tamanho = 120.0;
-furo_rosca = 3.7;
-folga_encaixe = 0.4;
+furo_rosca = 3.7;          // Rosca direta M4
+folga_encaixe = 0.8;       // Mesmo valor da carcaça/grade
 
 parede = 3.2;
-raio_canto = 12.0;
-largura_base = 82;
+raio_externo = 12.0;
+largura_base = 82.0;
 espessura_orelha = 5.0;
+altura_pivo = 18.0;
 
 $fn = 64;
 
-interno = fan_tamanho + folga_encaixe;
-externo = interno + parede * 2;
-gap_orelha = espessura_orelha + 0.5;
+interno = fan_tamanho + folga_encaixe; // 120.8mm
+externo = interno + parede * 2;        // 127.2mm
+gap_orelha = espessura_orelha + 0.6;  // 0.3mm de folga de cada lado
 parede_suporte = 4.5;
 
 module caixa_arredondada(larg, alt, prof, r) {
@@ -29,7 +30,7 @@ module caixa_arredondada(larg, alt, prof, r) {
 
 difference() {
     union() {
-        // Sapata de apoio na mesa
+        // Sapata de apoio na mesa (imprime plana em Z=0)
         caixa_arredondada(externo - 12, largura_base, 4.5, 10);
 
         // Torres laterais de fixação da carcaça
@@ -39,7 +40,7 @@ difference() {
                 hull() {
                     translate([0, 0, 2])
                         cube([parede_suporte, 34, 4], center = true);
-                    translate([0, -2, 18])
+                    translate([0, 0, altura_pivo])
                     rotate([0, 90, 0])
                         cylinder(h = parede_suporte, d = 20, center = true);
                 }
@@ -47,9 +48,9 @@ difference() {
         }
     }
 
-    // Furos M4 nos suportes da base
+    // Furos M4 nos suportes do pedestal
     for (lado = [-1, 1]) {
-        translate([lado * (externo/2 - 22), -2, 18])
+        translate([lado * (externo/2 - 22), 0, altura_pivo])
         rotate([0, 90, 0])
             cylinder(h = 30, d = furo_rosca, center = true);
     }
