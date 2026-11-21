@@ -1,5 +1,5 @@
 // =========================================================
-// VENTILADOR DE MESA SILENCIOSO 120MM - 3 PEÇAS SEPARADAS
+// VENTILADOR DE MESA SILENCIOSO 120MM - 3 PEÇAS + SAÍDA USB TOPO
 // =========================================================
 
 /* [Modo de Visualização / Exportação] */
@@ -14,6 +14,11 @@ furo_diametro = 4.4;      // Folga para parafuso M4 passar livre na grade
 furo_rosca = 3.7;         // Diâmetro para o parafuso M4 abrir rosca no plástico
 folga_encaixe = 0.4;      // Tolerância para Ender 3
 
+/* [Saída USB Superior] */
+// Padrão 9.2 x 3.4 mm serve tanto para conector USB-C fêmea quanto para passar cabo USB
+usb_largura = 9.2;        // Largura do recorte USB no topo
+usb_altura = 3.4;         // Altura do recorte USB no topo (espessura)
+
 /* [Acústica e Estética] */
 parede = 3.2;             // Espessura robusta anti-vibração
 raio_canto = 12.0;        // Arredondamento externo
@@ -27,7 +32,6 @@ $fn = 64;
 interno = fan_tamanho + folga_encaixe;
 externo = interno + parede * 2;
 profundidade_carcaca = fan_espessura + recuo_acustico + 4; // +4mm fundo
-largura_orelha = 22;
 espessura_orelha = 5;
 
 // =========================================================
@@ -51,7 +55,7 @@ module furos_montagem(diam, alt) {
 }
 
 // =========================================================
-// PEÇA 1: CARCAÇA PRINCIPAL (Imprime de costas, sem suportes)
+// PEÇA 1: CARCAÇA PRINCIPAL (Saída USB no topo, sem suportes)
 // =========================================================
 module peca_carcaca() {
     difference() {
@@ -63,6 +67,15 @@ module peca_carcaca() {
             for (x = [-1, 1]) for (y = [-1, 1])
                 translate([x * (interno/2 - 8.5), y * (interno/2 - 8.5), 3])
                     cylinder(h = recuo_acustico + 1, r = 8.5);
+
+            // Moldura externa reforçada no topo para o conector/cabo USB
+            translate([0, externo/2 - 0.5, 4 + usb_altura/2])
+                hull() {
+                    for (x = [-usb_largura/2 - 1.5, usb_largura/2 + 1.5])
+                        translate([x, 0, 0])
+                            rotate([90, 0, 0])
+                                cylinder(h = 2.0, d = usb_altura + 3.0, center = true);
+                }
 
             // Duas abas inferiores de acoplamento na Base
             for (lado = [-1, 1]) {
@@ -88,9 +101,15 @@ module peca_carcaca() {
         translate([0, 0, 1.5])
             furos_montagem(furo_rosca, profundidade_carcaca);
 
-        // Canaleta inferior traseira para passagem do cabo
-        translate([0, -interno/2, 9])
-            cube([11, 22, 12], center = true);
+        // Janela superior (Y+) para conector USB ou passagem do cabo USB
+        // Posicionada rente ao batente traseiro (Z=4) para imprimir sem suportes!
+        translate([0, externo/2, 4 + usb_altura/2])
+            hull() {
+                for (x = [-usb_largura/2 + usb_altura/2, usb_largura/2 - usb_altura/2])
+                    translate([x, 0, 0])
+                        rotate([90, 0, 0])
+                            cylinder(h = 16, d = usb_altura, center = true);
+            }
 
         // Furos M4 nas abas inferiores para prender na Base
         for (lado = [-1, 1]) {
