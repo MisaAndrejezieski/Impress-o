@@ -1,13 +1,13 @@
 // =========================================================
-// PEÇA 1: CARCAÇA PRINCIPAL - AJUSTADA PARA PCYES CALAFRIO 120MM
+// PEÇA 1: CARCAÇA PRINCIPAL (AUDITADA - 120MM + USB TOPO)
 // =========================================================
 
 fan_tamanho = 120.0;
-fan_espessura = 26.0;     // 25mm + 1mm para os pads de borracha nos cantos
+fan_espessura = 26.0;      // 25mm + 1mm folga pads de borracha
 furo_distancia = 105.0;
-furo_diametro = 4.4;
-furo_rosca = 3.7;
-folga_encaixe = 0.6;      // Folga confortável para encaixar sem forçar
+furo_diametro = 4.4;       // Passante M4
+furo_rosca = 3.7;          // Rosca direta M4 em PLA/PETG
+folga_encaixe = 0.8;       // Folga total na cavidade interna (120.8mm)
 
 // USB no topo (USB-A: 14.8 x 7.2 | USB-C oval: 9.6 x 3.8)
 usb_formato = "retangular"; // ["retangular", "oval"]
@@ -16,17 +16,18 @@ usb_altura = 7.2;
 
 parede = 3.2;
 parede_fundo = 3.5;
-espaco_traseiro = 14.0;
-recuo_acustico = 10.0;
-raio_externo = 12.0;      // Visual arredondado por fora
-raio_interno = 3.5;       // Cantos quase retos por dentro (encaixa o cooler quadrado!)
+espaco_traseiro = 14.0;   // Câmara atrás do cooler p/ conector USB e fios
+recuo_acustico = 10.0;     // Espaço frontal entre cooler e grade (anti-zumbido)
+raio_externo = 12.0;
+raio_interno = 3.5;        // Cantos quase retos p/ encaixar o cooler quadrado
 espessura_orelha = 5.0;
 
 $fn = 64;
 
-interno = fan_tamanho + folga_encaixe; // 120.6mm
-externo = interno + parede * 2;        // 127.0mm
-profundidade_carcaca = parede_fundo + espaco_traseiro + fan_espessura + recuo_acustico;
+interno = fan_tamanho + folga_encaixe; // 120.8mm
+externo = interno + parede * 2;        // 127.2mm
+z_costas_cooler = parede_fundo + espaco_traseiro; // 17.5mm
+profundidade_carcaca = z_costas_cooler + fan_espessura + recuo_acustico; // 53.5mm
 
 module caixa_arredondada(larg, alt, prof, r) {
     hull() {
@@ -59,48 +60,48 @@ module perfil_usb(larg, alt, prof) {
 }
 
 union() {
-    // 1. Casca externa + abas + abertura USB
+    // 1. Casca externa, janela USB e abas inferiores
     difference() {
         union() {
             caixa_arredondada(externo, externo, profundidade_carcaca, raio_externo);
 
-            // Moldura externa reforçada no topo para o USB
+            // Moldura externa reforçada no topo para o conector USB
             translate([0, externo/2 + 1.0, parede_fundo + usb_altura/2])
                 perfil_usb(usb_largura + 4.0, usb_altura + 3.6, 2.5);
 
-            // Duas abas inferiores de acoplamento na base
+            // Duas abas inferiores alinhadas ao centro Z da carcaça
             for (lado = [-1, 1]) {
-                translate([lado * (externo/2 - 22), -externo/2 - 7, profundidade_carcaca/2])
+                translate([lado * (externo/2 - 22), -externo/2 - 6, profundidade_carcaca/2])
                 rotate([0, 90, 0])
                 hull() {
                     cylinder(h = espessura_orelha, d = 18, center = true);
-                    translate([-10, 12, 0])
+                    translate([0, 12, 0])
                         cylinder(h = espessura_orelha, d = 18, center = true);
                 }
             }
         }
 
-        // Cavidade interna com cantos quase retos (raio_interno = 3.5mm)
+        // Cavidade interna completa (câmara USB + cooler + duto acústico)
         translate([0, 0, parede_fundo])
             caixa_arredondada(interno, interno, profundidade_carcaca + 2, raio_interno);
 
-        // Entrada de ar traseira
+        // Abertura traseira de entrada de ar
         translate([0, 0, -1])
-            cylinder(h = parede_fundo + 4, d = 104);
+            cylinder(h = parede_fundo + 4, d = 100);
 
-        // Janela superior para conector USB fêmea
+        // Janela superior (Y+) na câmara traseira (sem suportes)
         translate([0, externo/2 + 4, parede_fundo + usb_altura/2])
             perfil_usb(usb_largura, usb_altura, 16);
 
-        // Furos M4 nas abas inferiores
+        // Furos M4 nas abas inferiores para prender no pedestal
         for (lado = [-1, 1]) {
-            translate([lado * (externo/2 - 22), -externo/2 - 7, profundidade_carcaca/2])
+            translate([lado * (externo/2 - 22), -externo/2 - 6, profundidade_carcaca/2])
             rotate([0, 90, 0])
-                cylinder(h = espessura_orelha + 4, d = furo_diametro, center = true);
+                cylinder(h = espessura_orelha + 6, d = furo_diametro, center = true);
         }
     }
 
-    // 2. As 4 Torres internas de fixação (com folga para saída do cabo)
+    // 2. As 4 Torres traseiras de batente do cooler + rosca M4
     difference() {
         for (x = [-1, 1]) for (y = [-1, 1]) {
             hull() {
@@ -111,12 +112,12 @@ union() {
             }
         }
 
-        // Furos cegos de rosca M4 (3.7mm) nas 4 torres
+        // Furo de rosca M4 (3.7mm) da face de apoio do cooler até a parede de fundo
         translate([0, 0, parede_fundo + 1.5])
             furos_montagem(furo_rosca, espaco_traseiro + 2);
 
-        // Canaleta de alívio na torre inferior direita para o cabo do PCYES passar livre
-        translate([furo_distancia/2 - 7, -furo_distancia/2 - 2, parede_fundo + espaco_traseiro - 3])
+        // Alívio na torre inferior direita para o cabo do cooler passar sem amassar
+        translate([furo_distancia/2 - 6.5, -furo_distancia/2 - 1.5, z_costas_cooler - 3.5])
             cube([8, 12, 8], center = true);
     }
 }
