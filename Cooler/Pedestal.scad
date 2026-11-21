@@ -1,16 +1,16 @@
 // =========================================================
-// PEÇA 3: PEDESTAL / BASE COMPACTA (AUDITADA - 120MM)
+// PEÇA 3: PEDESTAL / BASE COMPACTA (CORRIGIDA E VALIDADA)
 // =========================================================
 
 fan_tamanho = 120.0;
 furo_rosca = 3.7;          // Rosca direta M4
-folga_encaixe = 0.8;       // Mesmo valor da carcaça/grade
+folga_encaixe = 0.8;       // Unificado com carcaça/grade
 
 parede = 3.2;
 raio_externo = 12.0;
-largura_base = 82.0;
+largura_base = 86.0;
 espessura_orelha = 5.0;
-altura_pivo = 18.0;
+altura_pivo = 22.0;        // UNIFICADO com carcaca.scad
 
 $fn = 64;
 
@@ -30,16 +30,16 @@ module caixa_arredondada(larg, alt, prof, r) {
 
 difference() {
     union() {
-        // Sapata de apoio na mesa (imprime plana em Z=0)
+        // Sapata de apoio na mesa
         caixa_arredondada(externo - 12, largura_base, 4.5, 10);
 
-        // Torres laterais de fixação da carcaça
+        // Torres laterais de fixação da carcaça (Z = altura_pivo = 22.0mm)
         for (lado = [-1, 1]) {
             for (sub = [-1, 1]) {
                 translate([lado * (externo/2 - 22) + sub * (gap_orelha/2 + parede_suporte/2), 0, 0])
                 hull() {
                     translate([0, 0, 2])
-                        cube([parede_suporte, 34, 4], center = true);
+                        cube([parede_suporte, 36, 4], center = true);
                     translate([0, 0, altura_pivo])
                     rotate([0, 90, 0])
                         cylinder(h = parede_suporte, d = 20, center = true);
@@ -48,7 +48,7 @@ difference() {
         }
     }
 
-    // Furos M4 nos suportes do pedestal
+    // Furos M4 nos suportes do pedestal em Z = altura_pivo (22.0mm)
     for (lado = [-1, 1]) {
         translate([lado * (externo/2 - 22), 0, altura_pivo])
         rotate([0, 90, 0])
