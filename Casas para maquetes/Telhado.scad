@@ -1,6 +1,7 @@
 // =========================================================
 // AGUA DO TELHADO (40% INCLINACAO) - CASINHA MODULAR 50x50
 // Auditado e validado para OpenSCAD 2021.01
+// Furo redondo limpo por baixo e teto fechado por cima
 // =========================================================
 
 // --- Modo de visualizacao / exportacao ---
@@ -17,7 +18,7 @@ qtd_modulos_y    = 1;       // 1 = 50 mm (1 parede), 2 = 100 mm (2 paredes)
 inclinacao_pct   = 40;      // 40% de inclinacao -> atan(0.40) = 21.80 graus
 beiral_lateral   = 4;       // Sobrinha na borda externa da rampa
 beiral_frente    = 3;       // Sobrinha nas extremidades ao longo de Y
-espessura_base   = 5.0;     // Espessura da base da telha
+espessura_base   = 8.0;     // Espessura da base para manter o teto fechado em cima
 
 // --- Formato das telhas (relevo nitido com degrau e calha) ---
 tem_telhas       = true;
@@ -26,23 +27,26 @@ altura_telha     = 2.6;     // Altura do relevo da telha
 degrau_telha     = 1.4;     // Degrau frontal da telha
 prof_calha       = 0.7;     // Rebaixo da calha lateral
 
-// --- Encaixe (pino vertical da parede: raio 2.5 mm, folga 0.25 mm) ---
+// --- Encaixe (pino vertical da parede: raio 2.5 mm, altura 4.0 mm, folga 0.25 mm) ---
 raio_pino        = 2.5;     // Raio nominal do pino da parede
 altura_pino      = 4.0;     // Altura util do pino da parede
 folga_encaixe    = 0.25;    // Folga no furo
-qtd_pinos_topo   = 2;       // 2 pinos por parede de 50 mm (em ~16.67 mm e ~33.33 mm)
+qtd_pinos_topo   = 2;       // 2 pinos por parede de 50 mm
 
 $fn = 64;
 
-// Furo cilindrico redondo inclinado a 40% e passante (sem meia-lua)
-module furo_passante_inclinado(r, folga, ang_incl, esp_base) {
+// Furo cilindrico redondo inclinado a 40%:
+// - Comeca bem abaixo de Z=0 (-2.5) para o plano Z=0 cortar um circulo completo (sem meia-lua)
+// - Termina antes do topo (max ~5.0 no eixo inclinado) para nao varar o teto
+module furo_encaixe_limpo(r, h_pino, folga, ang_incl) {
     raio_furo = r + folga;
-    // Altura suficiente para atravessar toda a espessura mesmo inclinada
-    comp_furo = (esp_base / cos(ang_incl)) + 8.0;
+    z_inicio  = -2.5;
+    // Profundidade util para o pino de 4.0 mm entrar com folga, sem chegar ao topo
+    z_fim     = min(espessura_base - 1.2, h_pino + folga + 0.6);
 
     rotate([0, -ang_incl, 0])
-        translate([0, 0, -4.0])
-            cylinder(h = comp_furo, r = raio_furo);
+        translate([0, 0, z_inicio])
+            cylinder(h = z_fim - z_inicio, r = raio_furo);
 }
 
 // Perfil 2D de uma telha com degrau frontal e calha lateral bem marcados
@@ -59,9 +63,7 @@ module perfil_telha_nitido_2d(larg, h_base, h_telha, degrau, calha) {
         for (i = [0 : passos])
             let(
                 u = i / passos,
-                // Degrau marcado no inicio (u de 0 a 0.14)
                 deg_z = (u < 0.14) ? (degrau * (1 - u / 0.14)) : 0,
-                // Corpo da telha com aba definida e calha lateral
                 corpo_z = (u >= 0.10) ? (h_telha * pow(sin(180 * ((u - 0.10) / 0.90)), 0.55)) : 0,
                 calha_z = (u > 0.78) ? (-calha * sin(180 * ((u - 0.78) / 0.22))) : 0,
                 z_val = max(0.4, h_base + deg_z + corpo_z + calha_z)
@@ -115,11 +117,11 @@ module agua_telhado_deitada() {
                         y_na_peca = beiral_frente + (m * lado_parede) + (espessura_parede / 2);
 
                         translate([dist_na_rampa, y_na_peca, 0])
-                            furo_passante_inclinado(
+                            furo_encaixe_limpo(
                                 raio_pino,
+                                altura_pino,
                                 folga_encaixe,
-                                ang_rampa,
-                                espessura_base
+                                ang_rampa
                             );
                     }
                 }
@@ -148,13 +150,11 @@ if (modo == "montagem_teste") {
     larg_rampa  = alcance_x / cos(ang_rampa);
     comp_y      = (lado_parede * qtd_modulos_y) + (2 * beiral_frente);
 
-    // Parede de referencia de 50x50 mm
     for (m = [0 : qtd_modulos_y - 1]) {
         translate([0, m * lado_parede, 0])
             parede_referencia_50x50();
     }
 
-    // Agua posicionada inclinada a 40% sobre o topo da parede (Z = 50)
     translate([lado_parede + beiral_lateral, (lado_parede * qtd_modulos_y) / 2, lado_parede])
         rotate([0, -ang_rampa, 0])
             translate([larg_rampa / 2, 0, 0])
