@@ -1,5 +1,5 @@
 // =========================================================
-// AGUA DO TELHADO (40% INCLINACAO, FURACAO INCLINADA)
+// AGUA DO TELHADO 40% - FUROS REDONDOS INCLINADOS (SEM MEIA-LUA)
 // Sistema Modular 50x50 mm | Espessura parede: 8 mm
 // Auditado e validado para OpenSCAD 2021.01
 // =========================================================
@@ -12,37 +12,30 @@ qtd_modulos_y    = 1;       // 1 = 50 mm (1 parede), 2 = 100 mm (2 paredes)
 // --- Inclinacao e geometria da agua do telhado ---
 inclinacao_pct   = 40;      // 40% de inclinacao (atan(0.40) = 21.80 graus)
 beiral_lateral   = 4;       // Sobrinha na borda externa da rampa
-beiral_frente    = 3;       // Sobrinha nas extremidades ao longo do comprimento
-espessura_base   = 4.0;     // Base plana da telha (garante corpo ao redor do furo inclinado)
+beiral_frente    = 3;       // Sobrinha nas extremidades ao longo de Y
+espessura_base   = 5.5;     // Espessura suficiente para o furo de 4 mm nao varar em cima
 
-// --- Formato das telhas (fileiras ao longo da rampa) ---
-tem_telhas       = true;    // Ativa o formato de telhas
-qtd_fileiras     = 5;       // Quantidade de fileiras de telhas
-altura_telha     = 2.2;     // Altura do relevo da telha
-sobreposicao_mm  = 1.2;     // Degrau de sobreposicao entre fileiras
+// --- Formato das telhas ---
+tem_telhas       = true;
+qtd_fileiras     = 5;
+altura_telha     = 2.0;
+sobreposicao_mm  = 1.0;
 
 // --- Encaixes (pinos verticais da parede: raio 2.5 mm, altura 4.0 mm, folga 0.25 mm) ---
 raio_pino        = 2.5;
 altura_pino      = 4.0;
 folga_encaixe    = 0.25;
-qtd_pinos_topo   = 2;
+qtd_pinos_topo   = 2;       // 2 pinos por parede de 50 mm (em 16.67 mm e 33.33 mm)
 
 $fn = 48;
 
-// Furo inclinado para receber pino vertical quando a rampa esta a 40%
-// ang_incl: angulo da rampa em graus (atan(inclinacao_pct / 100))
-// sentido_x: +1 se a rampa sobe para +X na mesa, -1 se sobe para -X
-module furo_inclinado(r, h_pino, folga, ang_incl, sentido_x = 1) {
+// Furo cilindrico redondo inclinado a 40% (sem deformacao de meia-lua)
+module furo_cilindrico_inclinado(r, h_pino, folga, ang_incl) {
     raio_furo = r + folga;
-    // Ao cortar um cilindro vertical (eixo Z na casa) com uma rampa inclinada por ang_incl,
-    // a secao na rampa alonga por 1/cos(ang_incl) na direcao da inclinacao.
-    escala_x = 1 / cos(ang_incl);
-    profundidade_furo = (h_pino / cos(ang_incl)) + 1.0;
-
-    // Inclina o eixo do furo em ang_incl em torno de Y
-    rotate([0, -sentido_x * ang_incl, 0])
-        scale([escala_x, 1, 1])
-            cylinder(h = profundidade_furo, r = raio_furo);
+    // Comeca levemente abaixo de Z=0 (-0.2) para cortar limpo na face inferior
+    rotate([0, -ang_incl, 0])
+        translate([0, 0, -0.2])
+            cylinder(h = h_pino + 0.4, r = raio_furo);
 }
 
 // Perfil 2D de uma fileira de telha
@@ -69,22 +62,22 @@ module perfil_fileira_telha(larg_fileira, h_base, h_telha, degrau) {
 }
 
 module agua_telhado_deitada() {
-    ang_rampa = atan(inclinacao_pct / 100); // ~21.80 graus para 40%
-    metade_base = lado_parede / 2;         // 25 mm sobre a parede de 50 mm
-    alcance_x = metade_base + beiral_lateral;
-    larg_rampa = alcance_x / cos(ang_rampa);
-    comp_y = (lado_parede * qtd_modulos_y) + (2 * beiral_frente);
+    ang_rampa   = atan(inclinacao_pct / 100); // 21.80 graus
+    metade_base = lado_parede / 2;            // 25 mm (cada agua cobre metade da largura de 50 mm)
+    alcance_x   = metade_base + beiral_lateral;
+    larg_rampa  = alcance_x / cos(ang_rampa);
+    comp_y      = (lado_parede * qtd_modulos_y) + (2 * beiral_frente);
 
     larg_fileira = larg_rampa / qtd_fileiras;
 
-    // Na peca deitada: x = 0 corresponde a borda externa (beiral), e x cresce subindo ate o pico
+    // Centralizado em X e Y, apoiado em Z = 0
     translate([-larg_rampa / 2, -comp_y / 2, 0]) {
         difference() {
             union() {
-                // Base solida apoiada na mesa (Z = 0)
+                // Base solida
                 cube([larg_rampa, comp_y, espessura_base]);
 
-                // Fileiras de telhas ao longo da rampa
+                // Fileiras de telhas
                 if (tem_telhas) {
                     for (f = [0 : qtd_fileiras - 1]) {
                         x_f = f * larg_fileira;
@@ -101,21 +94,25 @@ module agua_telhado_deitada() {
                 }
             }
 
-            // Furos inclinados alinhados com os pinos verticais do topo da parede
+            // Furos redondos inclinados apenas para os pinos que caem sob esta agua (entre 0 e metade_base)
             for (m = [0 : qtd_modulos_y - 1]) {
                 for (i = [1 : qtd_pinos_topo]) {
-                    x_parede = (lado_parede / (qtd_pinos_topo + 1)) * i;
-                    dist_na_rampa = (beiral_lateral + x_parede) / cos(ang_rampa);
-                    y_na_peca = beiral_frente + (m * lado_parede) + (espessura_parede / 2);
+                    // Distancia medida da borda externa da parede (0 a 50 mm)
+                    pos_na_parede = (lado_parede / (qtd_pinos_topo + 1)) * i;
 
-                    translate([dist_na_rampa, y_na_peca, -0.1])
-                        furo_inclinado(
-                            raio_pino,
-                            altura_pino,
-                            folga_encaixe,
-                            ang_rampa,
-                            sentido_x = 1
-                        );
+                    // So fura se o pino estiver dentro da metade coberta por esta agua (<= 25 mm)
+                    if (pos_na_parede <= metade_base) {
+                        dist_na_rampa = (beiral_lateral + pos_na_parede) / cos(ang_rampa);
+                        y_na_peca = beiral_frente + (m * lado_parede) + (espessura_parede / 2);
+
+                        translate([dist_na_rampa, y_na_peca, 0])
+                            furo_cilindrico_inclinado(
+                                raio_pino,
+                                altura_pino,
+                                folga_encaixe,
+                                ang_rampa
+                            );
+                    }
                 }
             }
         }
