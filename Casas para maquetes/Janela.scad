@@ -1,86 +1,82 @@
 // =========================================================
-// PAREDE COM JANELA 50x50 (SEM ENCAIXE PARA FOLHA DE JANELA)
+// JANELA DE ENCAIXE PARA VAO 22x22 - CASINHA MODULAR
 // Auditado para OpenSCAD 2021.01
 // =========================================================
 
-// --- Dimensoes principais (em mm) ---
-lado_parede       = 50;      // Parede quadrada: 50 x 50 mm
-espessura         = 8;       // Espessura da parede
+// --- Dimensoes do vao na parede ---
+largura_vao_janela = 22;      // Largura do recorte na parede
+altura_vao_janela  = 22;      // Altura do recorte na parede
+espessura_parede   = 8;       // Espessura da parede
 
-// --- Dimensoes da janela ---
-largura_janela    = 22;      // Largura do vao da janela
-altura_janela     = 22;      // Altura do vao da janela
-altura_peitoril   = 16;      // Altura da base ate o peitoril
+// --- Folga e encaixe ---
+folga_encaixe      = 0.25;    // Folga perimetral (ajuste conforme Ender 3 + PLA)
+profundidade_corpo = 6.0;     // Parte que entra dentro do vao de 8 mm
+espessura_borda    = 2.5;     // Largura do aro/moldura da janela
+tem_aba_batente    = true;    // Pequena aba para limitar o encaixe
+espessura_aba      = 1.5;     // Espessura da aba
+folga_aba          = 0.8;     // Quanto a aba avanca alem do vao
 
-// --- Parametros dos pinos e encaixes da parede ---
-raio_pino         = 2.5;     // Raio nominal do pino
-altura_pino       = 4.0;     // Altura util do pino
-folga_encaixe     = 0.25;    // Folga no furo (ajuste conforme teste na Ender 3)
-qtd_pinos_lateral = 2;       // Quantidade de pinos/furos na lateral
-qtd_pinos_topo    = 2;       // Quantidade de pinos no topo
-tem_pinos_topo    = true;    // Ativa/desativa pinos no topo
+// --- Detalhe interno (grade / divisoria) ---
+tipo_miolo         = "cruz";  // "cruz", "horizontal", "vertical" ou "nenhum"
+espessura_barra    = 2.2;
 
-// Resolucao de cilindros
+// Resolucao
 $fn = 48;
 
-module pino_chanfrado(r, h) {
-    h_corpo = h * 0.75;
-    h_ponta = h * 0.25;
-    r_ponta = r * 0.78;
+module janela_encaixe() {
+    larg_interna = largura_vao_janela - (2 * folga_encaixe);
+    alt_interna  = altura_vao_janela - (2 * folga_encaixe);
+
+    // Garante que a abertura interna do caixilho seja positiva
+    abertura_x = max(2, larg_interna - (2 * espessura_borda));
+    abertura_z = max(2, alt_interna - (2 * espessura_borda));
+    x_abertura = (larg_interna - abertura_x) / 2;
+    z_abertura = (alt_interna - abertura_z) / 2;
 
     union() {
-        cylinder(h = h_corpo + 0.02, r = r);
-        translate([0, 0, h_corpo])
-            cylinder(h = h_ponta, r1 = r, r2 = r_ponta);
-    }
-}
-
-module furo_encaixe(r, h, folga) {
-    cylinder(h = h + folga + 0.1, r = r + folga);
-}
-
-module parede_com_janela_50x50() {
-    x_janela = (lado_parede - largura_janela) / 2;
-
-    union() {
+        // Caixilho principal que entra no vao de 22x22 mm
         difference() {
-            // Bloco principal da parede 50x50
-            cube([lado_parede, espessura, lado_parede]);
+            cube([larg_interna, profundidade_corpo, alt_interna]);
 
-            // Recorte central da janela
-            translate([x_janela, -0.1, altura_peitoril])
-                cube([largura_janela, espessura + 0.2, altura_janela]);
+            translate([x_abertura, -0.1, z_abertura])
+                cube([abertura_x, profundidade_corpo + 0.2, abertura_z]);
+        }
 
-            // Furos de encaixe na lateral direita (+X)
-            for (i = [1 : qtd_pinos_lateral]) {
-                z_pos = (lado_parede / (qtd_pinos_lateral + 1)) * i;
-                translate([
-                    lado_parede - (altura_pino + folga_encaixe),
-                    espessura / 2,
-                    z_pos
-                ])
-                rotate([0, 90, 0])
-                    furo_encaixe(raio_pino, altura_pino, folga_encaixe);
+        // Aba/moldura frontal para encosto na face da parede
+        if (tem_aba_batente) {
+            larg_aba = largura_vao_janela + (2 * folga_aba);
+            alt_aba  = altura_vao_janela + (2 * folga_aba);
+            dx_aba   = (larg_aba - larg_interna) / 2;
+            dz_aba   = (alt_aba - alt_interna) / 2;
+
+            difference() {
+                translate([-dx_aba, profundidade_corpo - 0.02, -dz_aba])
+                    cube([larg_aba, espessura_aba, alt_aba]);
+
+                translate([x_abertura, profundidade_corpo - 0.12, z_abertura])
+                    cube([abertura_x, espessura_aba + 0.24, abertura_z]);
             }
         }
 
-        // Pinos na lateral esquerda (-X)
-        for (i = [1 : qtd_pinos_lateral]) {
-            z_pos = (lado_parede / (qtd_pinos_lateral + 1)) * i;
-            translate([-altura_pino, espessura / 2, z_pos])
-            rotate([0, 90, 0])
-                pino_chanfrado(raio_pino, altura_pino);
+        // Barras internas de acordo com tipo_miolo
+        if (tipo_miolo == "cruz" || tipo_miolo == "vertical") {
+            translate([
+                (larg_interna - espessura_barra) / 2,
+                (profundidade_corpo - espessura_barra) / 2,
+                espessura_borda - 0.05
+            ])
+            cube([espessura_barra, espessura_barra, abertura_z + 0.1]);
         }
 
-        // Pinos no topo (+Z) para encaixar o telhado
-        if (tem_pinos_topo) {
-            for (j = [1 : qtd_pinos_topo]) {
-                x_pos = (lado_parede / (qtd_pinos_topo + 1)) * j;
-                translate([x_pos, espessura / 2, lado_parede - 0.01])
-                    pino_chanfrado(raio_pino, altura_pino);
-            }
+        if (tipo_miolo == "cruz" || tipo_miolo == "horizontal") {
+            translate([
+                espessura_borda - 0.05,
+                (profundidade_corpo - espessura_barra) / 2,
+                (alt_interna - espessura_barra) / 2
+            ])
+            cube([abertura_x + 0.1, espessura_barra, espessura_barra]);
         }
     }
 }
 
-parede_com_janela_50x50();
+janela_encaixe();
