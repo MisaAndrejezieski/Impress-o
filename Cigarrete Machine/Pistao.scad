@@ -1,190 +1,168 @@
 // =========================================================
-// MÁQUINA INJETORA DE CIGARROS - PADRÃO KING SIZE (84mm x 8mm)
+// INJETOR MANUAL PARA TUBOS KING SIZE (84mm x 8mm) - REV. 2
 // =========================================================
 
-$fn = 64; // Resolução das curvas
+$fn = 72;
 
-// --- PARÂMETROS PRINCIPAIS (PADRÃO DE MERCADO) ---
-comp_tabaco   = 68.0;  // Comprimento da câmara de fumo (84mm total - 16mm filtro)
-diam_tubo     = 8.0;   // Diâmetro do tubo de cigarro padrão
-folga_bico    = 0.4;   // Redução no bico para o papel entrar sem rasgar
-folga_encaixe = 0.25;  // Tolerância para peças móveis (ajuste se necessário)
+// --- PARÂMETROS DE MERCADO E TOLERÂNCIA ---
+comp_total_tubo = 84.0;
+comp_filtro     = 16.0;
+comp_camara     = comp_total_tubo - comp_filtro; // 68.0 mm
 
-// --- DIMENSÕES ESTRUTURAIS ---
-diam_bico_ext = diam_tubo - folga_bico; // 7.6mm externo
-parede_bico   = 1.1;                    // Espessura da parede do bico
-diam_camara   = diam_bico_ext - (parede_bico * 2); // 5.4mm interno
-comp_bico     = 18.0;                   // Comprimento do bico onde encaixa o papel
+diam_tubo_ext   = 8.0;
+diam_bico_ext   = 7.35; // Folga radial para vestir tubo de 8mm sem rasgar
+esp_parede_bico = 1.25; // Parede robusta para não trincar
+diam_furo_bico  = diam_bico_ext - (2 * esp_parede_bico); // 4.85 mm
 
-largura_corpo = 22.0;
-altura_base   = 11.0;
-altura_tampa  = 9.0;
+comp_bico       = 17.0; // Comprimento útil para encaixar o tubo
+folga_movel     = 0.20; // Folga por face em partes deslizantes/encaixes
 
-// =========================================================
-// SELETOR DE VISUALIZAÇÃO / EXPORTAÇÃO
-// Mude para "base", "tampa", "empurrador" ou "todas"
-// =========================================================
-peca = "todas"; 
+// --- DIMENSÕES DO CORPO ---
+larg_corpo      = 24.0;
+alt_base_camara = 11.5;
+comp_bloco      = comp_camara + 8.0; // Margem frontal e traseira
+
+// --- SELETOR: "todas", "base", "tampa", "pistao" ---
+peca = "todas";
 
 if (peca == "todas") {
-    translate([-35, 0, 0]) base();
-    translate([0, 0, 0])   tampa();
-    translate([35, 0, 0])  empurrador();
+    translate([-42, 0, 0]) base_injetor();
+    translate([0, 0, 0])   tampa_prensadora();
+    translate([42, 0, 0])  pistao_empurrador();
 } else if (peca == "base") {
-    base();
+    base_injetor();
 } else if (peca == "tampa") {
-    tampa();
-} else if (peca == "empurrador") {
-    empurrador();
+    tampa_prensadora();
+} else if (peca == "pistao") {
+    pistao_empurrador();
 }
 
 // =========================================================
-// MÓDULO 1: BASE (CORPO + METADE INFERIOR DO BICO)
+// 1. BASE: CÂMARA + BICO TUBULAR INTEIRIÇO + TRILHO INFERIOR
 // =========================================================
-module base() {
+module base_injetor() {
+    y_ini = -comp_camara / 2;
+    y_fim =  comp_camara / 2;
+    z_eixo = alt_base_camara;
+
     difference() {
         union() {
             // Bloco principal
-            translate([-largura_corpo/2, -comp_tabaco/2, 0])
-                cube([largura_corpo, comp_tabaco, altura_base]);
-            
-            // Abas de apoio para os dedos (ergonomia na hora de empurrar)
-            translate([-(largura_corpo+16)/2, comp_tabaco/2 - 12, 0])
-                cube([largura_corpo + 16, 12, altura_base]);
+            translate([-larg_corpo/2, y_ini - 4, 0])
+                cube([larg_corpo, comp_camara + 8, alt_base_camara]);
 
-            // Metade inferior do bico frontal
-            translate([0, comp_tabaco/2, altura_base])
+            // Abas laterais ergonômicas na frente
+            translate([-(larg_corpo + 18)/2, y_fim - 12, 0])
+                cube([larg_corpo + 18, 12, alt_base_camara]);
+
+            // Bico tubular contínuo (evita abertura longitudinal sob pressão)
+            translate([0, y_fim, z_eixo])
                 rotate([-90, 0, 0])
-                    difference() {
-                        cylinder(h = comp_bico, d = diam_bico_ext);
-                        translate([0, 0, -0.1])
-                            cylinder(h = comp_bico + 0.2, d = diam_camara);
-                        // Corta a metade superior do cilindro para ficar só a calha inferior
-                        translate([-diam_bico_ext, -diam_bico_ext, -0.1])
-                            cube([diam_bico_ext*2, diam_bico_ext, comp_bico + 0.2]);
-                    }
+                    bico_com_chanfro(comp_bico, diam_bico_ext, diam_furo_bico);
         }
 
-        // Calha interna do tabaco (semicírculo inferior)
-        translate([0, -comp_tabaco/2 - 0.1, altura_base])
+        // Calha semicircular inferior da câmara
+        translate([0, y_ini - 0.2, z_eixo])
             rotate([-90, 0, 0])
-                cylinder(h = comp_tabaco + 0.2, d = diam_camara);
+                cylinder(h = comp_camara + 0.4, d = diam_furo_bico + 0.6);
 
-        // Trilho guia inferior (formato T invertido para o empurrador não escapar)
-        translate([-(6 + folga_encaixe*2)/2, -comp_tabaco/2 - 0.1, -0.1])
-            cube([6 + folga_encaixe*2, comp_tabaco + 0.2, 3.2]);
-        translate([-(10 + folga_encaixe*2)/2, -comp_tabaco/2 - 0.1, 2.0])
-            cube([10 + folga_encaixe*2, comp_tabaco + 0.2, 2.2]);
+        // Transição cônica (funil) da câmara para o furo do bico
+        translate([0, y_fim - 0.1, z_eixo])
+            rotate([-90, 0, 0])
+                cylinder(h = 4.0, d1 = diam_furo_bico + 0.6, d2 = diam_furo_bico);
 
-        // Furos para pinos de alinhamento da tampa (4 cantos)
-        for (x = [-largura_corpo/2 + 3.5, largura_corpo/2 - 3.5]) {
-            for (y = [-comp_tabaco/2 + 6, comp_tabaco/2 - 6]) {
-                translate([x, y, altura_base - 4])
-                    cylinder(h = 4.2, d = 3.0 + folga_encaixe*2);
-            }
-        }
+        // Furo passante do bico
+        translate([0, y_fim - 0.2, z_eixo])
+            rotate([-90, 0, 0])
+                cylinder(h = comp_bico + 0.5, d = diam_furo_bico);
+
+        // Trilho inferior em "T" invertido com folga controlada
+        translate([-(6.0 + 2*folga_movel)/2, y_ini - 4.2, -0.1])
+            cube([6.0 + 2*folga_movel, comp_camara + 8.4, 2.6]);
+        translate([-(10.0 + 2*folga_movel)/2, y_ini - 4.2, 2.2])
+            cube([10.0 + 2*folga_movel, comp_camara + 8.4, 2.0]);
+
+        // Rebaixo de assentamento da tampa (evita deslocamento lateral)
+        translate([-(larg_corpo - 4)/2, y_ini, alt_base_camara - 1.2])
+            cube([larg_corpo - 4, comp_camara, 1.4]);
     }
 }
 
-// =========================================================
-// MÓDULO 2: TAMPA PRENSADORA (IMPRIME DE CABEÇA PARA BAIXO)
-// =========================================================
-module tampa() {
-    union() {
-        // Bloco da tampa
-        translate([-largura_corpo/2, -comp_tabaco/2, 0])
-            cube([largura_corpo, comp_tabaco, altura_tampa]);
-
-        // Calha interna superior (que prensa o tabaco ao fechar)
-        // Na posição invertida de impressão, ela fica voltada para cima
-        difference() {
-            // Pinos de alinhamento (4 cantos)
-            for (x = [-largura_corpo/2 + 3.5, largura_corpo/2 - 3.5]) {
-                for (y = [-comp_tabaco/2 + 6, comp_tabaco/2 - 6]) {
-                    translate([x, y, altura_tampa])
-                        cylinder(h = 3.8, d = 3.0);
-                }
-            }
-        }
-
-        // Metade superior do bico (orientada para imprimir plana na mesa)
-        translate([0, comp_tabaco/2, altura_tampa])
-            rotate([-90, 0, 0])
-                difference() {
-                    cylinder(h = comp_bico, d = diam_bico_ext);
-                    translate([0, 0, -0.1])
-                        cylinder(h = comp_bico + 0.2, d = diam_camara);
-                    translate([-diam_bico_ext, 0, -0.1])
-                        cube([diam_bico_ext*2, diam_bico_ext, comp_bico + 0.2]);
-                }
-    }
-    
-    // Nota: A tampa fecha plana sobre a calha da base, formando o cilindro
-    // completo com a calha inferior da base + calha do bico.
-    // Vamos adicionar um rebaixo semicircular na tampa para formar o tubo completo:
-    // (Substitua o bloco simples acima por um bloco com calha)
-}
-
-// Redefinindo a tampa com a calha semicircular correta e chanfros no bico
-module tampa() {
+module bico_com_chanfro(comp, d_ext, d_int) {
+    chanfro = 1.2;
     difference() {
         union() {
-            // Corpo da tampa
-            translate([-largura_corpo/2, -comp_tabaco/2, 0])
-                cube([largura_corpo, comp_tabaco, altura_tampa]);
-
-            // Pinos guia
-            for (x = [-largura_corpo/2 + 3.5, largura_corpo/2 - 3.5]) {
-                for (y = [-comp_tabaco/2 + 6, comp_tabaco/2 - 6]) {
-                    translate([x, y, altura_tampa])
-                        cylinder(h = 3.6, d = 2.9);
-                }
-            }
-
-            // Metade superior do bico
-            translate([0, comp_tabaco/2, altura_tampa])
-                rotate([-90, 0, 0])
-                    difference() {
-                        cylinder(h = comp_bico, d = diam_bico_ext);
-                        translate([0, 0, -0.1])
-                            cylinder(h = comp_bico + 0.2, d = diam_camara);
-                        translate([-diam_bico_ext, 0, -0.1])
-                            cube([diam_bico_ext*2, diam_bico_ext, comp_bico + 0.2]);
-                    }
+            cylinder(h = comp - chanfro, d = d_ext);
+            translate([0, 0, comp - chanfro])
+                cylinder(h = chanfro, d1 = d_ext, d2 = d_ext - 1.1);
         }
-
-        // Calha semicircular superior da câmara de tabaco
-        translate([0, -comp_tabaco/2 - 0.1, altura_tampa])
-            rotate([-90, 0, 0])
-                cylinder(h = comp_tabaco + 0.2, d = diam_camara);
+        translate([0, 0, -0.2])
+            cylinder(h = comp + 0.5, d = d_int);
     }
 }
 
 // =========================================================
-// MÓDULO 3: EMPURRADOR (PISTÃO DESLIZANTE)
+// 2. TAMPA: FECHAMENTO SUPERIOR + GUIA DE ALIMENTAÇÃO
 // =========================================================
-module empurrador() {
-    comp_haste = comp_tabaco + comp_bico - 2.0; // Vai até a ponta do bico
-    diam_pistao = diam_camara - (folga_encaixe * 2);
+module tampa_prensadora() {
+    y_ini = -comp_camara / 2;
+    alt_tampa = 7.5;
+
+    difference() {
+        union() {
+            // Corpo da tampa apoiado plano em Z=0 para impressão
+            translate([-(larg_corpo - 4 - 2*folga_movel)/2, y_ini, 0])
+                cube([larg_corpo - 4 - 2*folga_movel, comp_camara, alt_tampa]);
+
+            // Aba superior externa de contenção (impede que a tampa suba)
+            translate([-larg_corpo/2, y_ini, alt_tampa - 2.0])
+                cube([larg_corpo, comp_camara, 2.0]);
+        }
+
+        // Canaleta superior de alívio/prensagem
+        translate([0, y_ini - 0.2, 0])
+            rotate([-90, 0, 0])
+                cylinder(h = comp_camara + 0.4, d = diam_furo_bico + 0.4);
+    }
+}
+
+// =========================================================
+// 3. PISTÃO: HASTE COM BASE CHANFRADA + GUIA DO TRILHO
+// =========================================================
+module pistao_empurrador() {
+    y_ini = -comp_camara / 2;
+    comp_haste = comp_camara + comp_bico - 3.0;
+    diam_haste = diam_furo_bico - (2 * folga_movel);
 
     union() {
-        // Pegador traseiro (apoio para o polegar)
-        translate([-largura_corpo/2, -comp_tabaco/2 - 12, 0])
-            cube([largura_corpo, 12, altura_base + 4]);
+        // Cabo traseiro
+        translate([-larg_corpo/2, y_ini - 14, 0])
+            cube([larg_corpo, 10, alt_base_camara + 4]);
 
-        // Barra deslizante que corre no trilho inferior da base
-        translate([-5.8/2, -comp_tabaco/2, 0])
-            cube([5.8, comp_tabaco - 5, 3.0]);
-        translate([-9.8/2, -comp_tabaco/2, 2.0])
-            cube([9.8, comp_tabaco - 5, 1.8]);
+        // Guia inferior do trilho (com folga de 0.20 mm por lado)
+        translate([-3.0, y_ini - 14, 0])
+            cube([6.0, comp_camara + 10, 2.5]);
+        translate([-5.0, y_ini - 14, 2.2])
+            cube([10.0, comp_camara + 10, 1.8]);
 
-        // Coluna de ligação traseira
-        translate([-diam_pistao/2, -comp_tabaco/2 - 4, 0])
-            cube([diam_pistao, 6, altura_base]);
+        // Coluna estrutural traseira
+        translate([-diam_haste/2, y_ini - 4, 0])
+            cube([diam_haste, 4.5, alt_base_camara]);
 
-        // Haste cilíndrica que empurra o tabaco
-        translate([0, -comp_tabaco/2, altura_base])
+        // Haste cilíndrica com chanfro inferior (evita ovalização na mesa)
+        translate([0, y_ini, alt_base_camara])
             rotate([-90, 0, 0])
-                cylinder(h = comp_haste, d = diam_pistao);
+                haste_anti_oval(comp_haste, diam_haste);
+    }
+}
+
+module haste_anti_oval(comp, diam) {
+    r = diam / 2;
+    // Corta levemente a base (-Z no espaço local antes da rotação)
+    // para criar uma pequena base plana que impede deformação no espelho
+    intersection() {
+        cylinder(h = comp, d = diam);
+        translate([-r - 1, -r + 0.35, -0.1])
+            cube([diam + 2, diam + 1, comp + 0.2]);
     }
 }
